@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux-x86_64
+          - runner: macos-latest
+            platform: macos-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.18"
+
+      - run: mix deps.get
+      - run: mix compile
+
+      - name: Package NIF binary
+        run: tar czf rocket_nif-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz priv/rocket_nif.so
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rocket_nif-${{ matrix.platform }}
+          path: rocket_nif-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: rocket_nif-*.tar.gz
+          generate_release_notes: true
