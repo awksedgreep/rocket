@@ -2,21 +2,19 @@ defmodule Rocket.Connection do
   @moduledoc """
   Per-connection process. Owns one client socket for its lifetime.
 
-  Phase 1: Simple HTTP echo server — reads data, parses a minimal HTTP
-  request (enough to find the end of headers), and sends back a response.
-
-  Later phases will integrate the NIF parser and router.
+  Uses the Rocket.HTTP NIF (picohttpparser) for HTTP/1.1 request parsing.
+  Supports keep-alive connections with idle timeout.
   """
   require Logger
 
   @idle_timeout_ms 60_000
+  @max_header_size 8192
 
   def start(socket, handler) do
     spawn(fn -> init(socket, handler) end)
   end
 
   defp init(socket, handler) do
-    # Wait for the acceptor to transfer socket ownership
     receive do
       :ready -> :ok
     after
@@ -48,73 +46,43 @@ defmodule Rocket.Connection do
   end
 
   defp handle_data(socket, handler, buffer) do
-    case :binary.match(buffer, <<"\r\n\r\n">>) do
-      {pos, 4} ->
-        header_data = :binary.part(buffer, 0, pos)
-        body_start = pos + 4
-        rest = :binary.part(buffer, body_start, byte_size(buffer) - body_start)
+    case Rocket.HTTP.parse_request(buffer) do
+      {:ok, {method, path, query_string, headers, body_offset, _minor_version}} ->
+        # Extract any body data already in the buffer
+        body =
+          if body_offset < byte_size(buffer) do
+            binary_part(buffer, body_offset, byte_size(buffer) - body_offset)
+          else
+            <<>>
+          end
 
-        case parse_request_line(header_data) do
-          {:ok, method, path} ->
-            req = %{
-              method: method,
-              path: path,
-              socket: socket,
-              body: rest
-            }
+        req = %{
+          method: method,
+          path: path,
+          query_string: query_string,
+          headers: headers,
+          body: body,
+          socket: socket
+        }
 
-            dispatch(req, handler)
+        dispatch(req, handler)
 
-            # Keep-alive: loop back for next request
-            recv_loop(socket, handler, <<>>)
+        # Keep-alive: loop back for next request
+        recv_loop(socket, handler, <<>>)
 
-          :error ->
-            send_response(socket, 400, "Bad Request")
-            :socket.close(socket)
-        end
-
-      :nomatch ->
-        if byte_size(buffer) > 8192 do
+      :incomplete ->
+        if byte_size(buffer) > @max_header_size do
           send_response(socket, 431, "Request Header Fields Too Large")
           :socket.close(socket)
         else
           recv_loop(socket, handler, buffer)
         end
+
+      :error ->
+        send_response(socket, 400, "Bad Request")
+        :socket.close(socket)
     end
   end
-
-  defp parse_request_line(header_data) do
-    case :binary.match(header_data, <<"\r\n">>) do
-      {pos, 2} ->
-        request_line = :binary.part(header_data, 0, pos)
-        parse_method_and_path(request_line)
-
-      :nomatch ->
-        parse_method_and_path(header_data)
-    end
-  end
-
-  defp parse_method_and_path(line) do
-    case :binary.split(line, <<" ">>, [:global]) do
-      [method, path, _version] ->
-        {:ok, normalize_method(method), path}
-
-      [method, path] ->
-        {:ok, normalize_method(method), path}
-
-      _ ->
-        :error
-    end
-  end
-
-  defp normalize_method(<<"GET">>), do: :get
-  defp normalize_method(<<"POST">>), do: :post
-  defp normalize_method(<<"PUT">>), do: :put
-  defp normalize_method(<<"DELETE">>), do: :delete
-  defp normalize_method(<<"HEAD">>), do: :head
-  defp normalize_method(<<"OPTIONS">>), do: :options
-  defp normalize_method(<<"PATCH">>), do: :patch
-  defp normalize_method(other), do: String.downcase(other) |> String.to_atom()
 
   defp dispatch(req, handler) do
     try do

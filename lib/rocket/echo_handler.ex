@@ -1,14 +1,21 @@
 defmodule Rocket.EchoHandler do
   @moduledoc """
-  Simple echo handler for testing Phase 1.
-  Returns the method and path back to the client.
+  Echo handler for testing. Returns request details as JSON.
   """
   @behaviour Rocket.Handler
 
   @impl true
   def handle(req) do
-    body = "#{req.method} #{req.path}\n"
-    Rocket.Connection.send_response(req.socket, 200, body)
+    body =
+      :json.encode(%{
+        method: req.method,
+        path: req.path,
+        query_string: req.query_string,
+        headers: Map.new(req.headers),
+        body: req.body
+      })
+
+    Rocket.Connection.send_response(req.socket, 200, IO.iodata_to_binary(body))
     :ok
   end
 end

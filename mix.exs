@@ -9,6 +9,8 @@ defmodule Rocket.MixProject do
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
+      compilers: [:elixir_make] ++ Mix.compilers(),
+      make_clean: ["clean"],
       deps: deps()
     ]
   end
@@ -20,6 +22,8 @@ defmodule Rocket.MixProject do
   end
 
   defp deps do
-    []
+    [
+      {:elixir_make, "~> 0.9", runtime: false}
+    ]
   end
 end
