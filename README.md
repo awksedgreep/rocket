@@ -4,6 +4,19 @@ High-performance HTTP/1.1 server for the BEAM.
 
 Rocket uses OTP 28's `:socket` module with a [picohttpparser](https://github.com/h2o/picohttpparser) NIF for request parsing. No middleware layers, no protocol abstractions — just raw TCP sockets and pattern-matched routing compiled at build time.
 
+## Status
+
+> **Experimental / early-stage** — Rocket is under active development and not yet production-ready.
+
+Current limitations:
+
+- No TLS/HTTPS
+- No HTTP/2
+- No WebSockets
+- No middleware or Plug compatibility
+- No chunked/streaming responses
+- Requires OTP 28 (pre-release)
+
 ## Performance
 
 **~30x lower latency** than Bandit+Plug, translating to **~3x higher throughput** under load.
@@ -39,7 +52,7 @@ Add `rocket` to your dependencies:
 ```elixir
 def deps do
   [
-    {:rocket, "~> 0.1.0"}
+    {:rocket, "~> 0.2"}
   ]
 end
 ```
