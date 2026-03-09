@@ -1,21 +1,26 @@
 defmodule Rocket.EchoHandler do
   @moduledoc """
-  Echo handler for testing. Returns request details as JSON.
+  Echo handler for testing. Demonstrates the Router DSL.
   """
-  @behaviour Rocket.Handler
+  use Rocket.Router
 
-  @impl true
-  def handle(req) do
-    body =
-      :json.encode(%{
-        method: req.method,
-        path: req.path,
-        query_string: req.query_string,
-        headers: Map.new(req.headers),
-        body: req.body
-      })
+  get "/health" do
+    send_resp(req, 200, "ok")
+  end
 
-    Rocket.Connection.send_response(req.socket, 200, IO.iodata_to_binary(body))
-    :ok
+  get "/echo/:name" do
+    json(req, 200, %{name: req.path_params["name"]})
+  end
+
+  post "/echo" do
+    json(req, 200, %{method: "post", body: req.body})
+  end
+
+  match _ do
+    json(req, 200, %{
+      method: req.method,
+      path: req.path,
+      query_string: req.query_string
+    })
   end
 end
