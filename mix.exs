@@ -1,7 +1,7 @@
 defmodule Rocket.MixProject do
   use Mix.Project
 
-  @version "0.2.3"
+  @version "0.2.4"
   @source_url "https://github.com/awksedgreep/rocket"
 
   def project do
@@ -45,7 +45,7 @@ defmodule Rocket.MixProject do
       maintainers: ["Matthew Cotner"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib c_src priv Makefile mix.exs README.md LICENSE .formatter.exs)
+      files: ~w(lib c_src Makefile mix.exs README.md LICENSE .formatter.exs)
     ]
   end
 end
