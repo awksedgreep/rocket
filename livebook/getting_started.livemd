@@ -1,0 +1,294 @@
+# Getting Started with Rocket
+
+## Setup
+
+```elixir
+Mix.install([
+  {:rocket, path: Path.join(__DIR__, "..")},
+  {:req, "~> 0.5"}
+])
+```
+
+## Hello World
+
+The simplest Rocket app: a single GET route that returns text.
+
+```elixir
+defmodule HelloRouter do
+  use Rocket.Router
+
+  get "/hello" do
+    send_resp(req, 200, "Hello from Rocket!")
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, hello_sup} = Rocket.start_link(port: 14_001, handler: HelloRouter)
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14001/hello").body
+```
+
+```elixir
+# Non-existent route returns 404
+Req.get!("http://127.0.0.1:14001/nope").status
+```
+
+```elixir
+Supervisor.stop(hello_sup)
+```
+
+## Path Parameters
+
+Route segments prefixed with `:` become path parameters, accessible via `req.path_params`.
+
+```elixir
+defmodule PathParamsRouter do
+  use Rocket.Router
+
+  get "/users/:id" do
+    json(req, 200, %{user_id: req.path_params["id"]})
+  end
+
+  get "/repos/:owner/:repo" do
+    json(req, 200, %{
+      owner: req.path_params["owner"],
+      repo: req.path_params["repo"]
+    })
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, path_sup} = Rocket.start_link(port: 14_002, handler: PathParamsRouter)
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14002/users/42").body
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14002/repos/elixir-lang/elixir").body
+```
+
+```elixir
+Supervisor.stop(path_sup)
+```
+
+## Query Parameters
+
+Use `Rocket.Request.query_params/1` to parse the full query string, or
+`Rocket.Request.get_query_param/2` to grab a single key.
+
+```elixir
+defmodule QueryRouter do
+  use Rocket.Router
+
+  get "/search" do
+    {params, _req} = Rocket.Request.query_params(req)
+    json(req, 200, params)
+  end
+
+  get "/greeting" do
+    name = Rocket.Request.get_query_param(req, "name") || "world"
+    send_resp(req, 200, "Hello, #{name}!")
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, query_sup} = Rocket.start_link(port: 14_003, handler: QueryRouter)
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14003/search?metric=cpu&host=web-1&region=us-east").body
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14003/greeting?name=Rocket").body
+```
+
+```elixir
+# Falls back to default when param is absent
+Req.get!("http://127.0.0.1:14003/greeting").body
+```
+
+```elixir
+Supervisor.stop(query_sup)
+```
+
+## JSON API
+
+`json/3` encodes an Elixir term as JSON and sets the `content-type` header automatically.
+Request bodies are available as `req.body`.
+
+```elixir
+defmodule JsonApiRouter do
+  use Rocket.Router
+
+  get "/status" do
+    json(req, 200, %{status: "healthy", uptime_ms: System.monotonic_time(:millisecond)})
+  end
+
+  post "/echo" do
+    decoded = :json.decode(req.body)
+    json(req, 200, %{received: decoded})
+  end
+
+  post "/size" do
+    json(req, 200, %{bytes: byte_size(req.body)})
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, json_sup} = Rocket.start_link(port: 14_004, handler: JsonApiRouter)
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14004/status").body
+```
+
+```elixir
+Req.post!("http://127.0.0.1:14004/echo", json: %{hello: "world"}).body
+```
+
+```elixir
+Req.post!("http://127.0.0.1:14004/size", body: String.duplicate("x", 1024)).body
+```
+
+```elixir
+Supervisor.stop(json_sup)
+```
+
+## Custom Headers
+
+`Rocket.Response.send_iodata/4` lets you set arbitrary response headers — useful for
+CSV, HTML, or any non-JSON content type.
+
+```elixir
+defmodule CustomHeadersRouter do
+  use Rocket.Router
+
+  get "/csv" do
+    csv = "name,score\nAlice,95\nBob,87\nCharlie,92\n"
+
+    send_iodata(req, 200, [{"content-type", "text/csv"}, {"x-row-count", "3"}], csv)
+  end
+
+  get "/html" do
+    html = "<h1>Rocket</h1><p>A fast HTTP server for Elixir.</p>"
+    send_iodata(req, 200, [{"content-type", "text/html; charset=utf-8"}], html)
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, headers_sup} = Rocket.start_link(port: 14_005, handler: CustomHeadersRouter)
+```
+
+```elixir
+resp = Req.get!("http://127.0.0.1:14005/csv")
+IO.puts(resp.body)
+IO.inspect(resp.headers)
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14005/html").body
+```
+
+```elixir
+Supervisor.stop(headers_sup)
+```
+
+## Configuration
+
+Rocket accepts these options when starting a server:
+
+| Option | Default | Description |
+|---|---|---|
+| `:handler` | *required* | Module using `Rocket.Router` |
+| `:port` | `8080` | TCP port |
+| `:num_acceptors` | `System.schedulers_online()` | Acceptor pool size |
+| `:max_connections` | `10_000` | Max concurrent connections |
+| `:max_body` | `1_048_576` (1 MB) | Max request body in bytes |
+| `:backlog` | `1024` | TCP listen backlog |
+
+```elixir
+defmodule ConfigRouter do
+  use Rocket.Router
+
+  get "/ping" do
+    send_resp(req, 200, "pong")
+  end
+
+  post "/upload" do
+    json(req, 200, %{received_bytes: byte_size(req.body)})
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+
+{:ok, config_sup} =
+  Rocket.start_link(
+    port: 14_006,
+    handler: ConfigRouter,
+    num_acceptors: 4,
+    max_connections: 100,
+    max_body: 2048,
+    backlog: 128
+  )
+```
+
+```elixir
+Req.get!("http://127.0.0.1:14006/ping").body
+```
+
+```elixir
+# Body within the 2KB limit succeeds
+Req.post!("http://127.0.0.1:14006/upload", body: String.duplicate("a", 2000)).body
+```
+
+```elixir
+# Body exceeding the 2KB limit gets rejected (413 Content Too Large)
+Req.post!("http://127.0.0.1:14006/upload", body: String.duplicate("a", 3000)).status
+```
+
+```elixir
+Supervisor.stop(config_sup)
+```
+
+## Cleanup
+
+All servers have been stopped in their respective sections. If you re-ran cells out of
+order and have leftover processes, you can stop them here:
+
+```elixir
+for {pid, _} <- [
+      {hello_sup, nil},
+      {path_sup, nil},
+      {query_sup, nil},
+      {json_sup, nil},
+      {headers_sup, nil},
+      {config_sup, nil}
+    ],
+    is_pid(pid) and Process.alive?(pid) do
+  Supervisor.stop(pid)
+end
+
+:ok
+```

@@ -1,0 +1,282 @@
+# Rocket vs Bandit Benchmark
+
+## Setup
+
+```elixir
+Mix.install([
+  {:rocket, path: Path.join(__DIR__, "..")},
+  {:bandit, "~> 1.6"},
+  {:plug, "~> 1.16"},
+  {:req, "~> 0.5"}
+])
+```
+
+## Servers
+
+Define equivalent routers for Rocket and Bandit+Plug, then start both.
+
+```elixir
+defmodule BenchPlug do
+  use Plug.Router
+
+  plug :match
+  plug :dispatch
+
+  get "/health" do
+    send_resp(conn, 200, "ok")
+  end
+
+  get "/json" do
+    body = :json.encode(%{status: "healthy", ts: System.os_time(:second)})
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, body)
+  end
+
+  post "/data" do
+    {:ok, body, conn} = Plug.Conn.read_body(conn)
+    resp = :json.encode(%{size: byte_size(body)})
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(200, resp)
+  end
+
+  match _ do
+    send_resp(conn, 404, "not found")
+  end
+end
+
+defmodule BenchRocket do
+  use Rocket.Router
+
+  get "/health" do
+    send_resp(req, 200, "ok")
+  end
+
+  get "/json" do
+    json(req, 200, %{status: "healthy", ts: System.os_time(:second)})
+  end
+
+  post "/data" do
+    json(req, 200, %{size: byte_size(req.body)})
+  end
+
+  match _ do
+    send_resp(req, 404, "not found")
+  end
+end
+```
+
+```elixir
+{:ok, rocket_sup} = Rocket.start_link(port: 15_080, handler: BenchRocket)
+{:ok, bandit_sup} = Bandit.start_link(plug: BenchPlug, port: 15_081)
+
+# Let listeners settle
+Process.sleep(200)
+
+IO.puts("Rocket listening on :15080")
+IO.puts("Bandit listening on :15081")
+```
+
+## Bench Helper
+
+Spawns N concurrent workers that hammer a URL, collects per-request latency in ETS,
+and computes percentiles. Adapted from `bench/vs_bandit.exs`.
+
+```elixir
+defmodule Bench do
+  @doc "Run `total` requests at `concurrency` against `base_url ++ path`."
+  def run(base_url, path, method, body, total, concurrency) do
+    ets = :ets.new(:bench, [:ordered_set, :public, {:write_concurrency, true}])
+    counter = :counters.new(2, [:atomics])
+    per_worker = div(total, concurrency)
+
+    start = System.monotonic_time(:microsecond)
+
+    tasks =
+      for _ <- 1..concurrency do
+        Task.async(fn ->
+          client = Req.new(base_url: base_url, pool_size: 50, retry: false)
+
+          for _ <- 1..per_worker do
+            t0 = System.monotonic_time(:microsecond)
+
+            result =
+              case method do
+                :get -> Req.get(client, url: path)
+                :post -> Req.post(client, url: path, body: body)
+              end
+
+            elapsed = System.monotonic_time(:microsecond) - t0
+
+            case result do
+              {:ok, %{status: s}} when s < 400 ->
+                :counters.add(counter, 1, 1)
+                :ets.insert(ets, {:erlang.unique_integer([:monotonic]), elapsed})
+
+              _ ->
+                :counters.add(counter, 2, 1)
+            end
+          end
+        end)
+      end
+
+    Task.await_many(tasks, 120_000)
+
+    wall_us = System.monotonic_time(:microsecond) - start
+    completed = :counters.get(counter, 1)
+    errors = :counters.get(counter, 2)
+
+    latencies =
+      :ets.tab2list(ets) |> Enum.map(fn {_, us} -> us end) |> Enum.sort()
+
+    :ets.delete(ets)
+
+    %{
+      completed: completed,
+      errors: errors,
+      wall_ms: div(wall_us, 1000),
+      rps: if(wall_us > 0, do: div(completed * 1_000_000, wall_us), else: 0),
+      p50: percentile(latencies, 0.50),
+      p95: percentile(latencies, 0.95),
+      p99: percentile(latencies, 0.99),
+      min: List.first(latencies, 0),
+      max: List.last(latencies, 0)
+    }
+  end
+
+  defp percentile([], _), do: 0
+
+  defp percentile(sorted, p) do
+    idx = trunc(length(sorted) * p) |> min(length(sorted) - 1) |> max(0)
+    Enum.at(sorted, idx)
+  end
+
+  def fmt_int(n) when n >= 1_000_000, do: "#{Float.round(n / 1_000_000, 1)}M"
+  def fmt_int(n) when n >= 1_000, do: "#{Float.round(n / 1_000, 1)}K"
+  def fmt_int(n), do: "#{n}"
+
+  def fmt_us(us) when us >= 1_000_000, do: "#{Float.round(us / 1_000_000, 2)}s"
+  def fmt_us(us) when us >= 1_000, do: "#{Float.round(us / 1_000, 2)}ms"
+  def fmt_us(us), do: "#{us}μs"
+
+  def print_comparison(rocket, bandit) do
+    pad = &String.pad_leading(&1, 14)
+
+    IO.puts("                        Rocket          Bandit")
+    IO.puts("  Requests:       #{pad.(fmt_int(rocket.completed))}  #{pad.(fmt_int(bandit.completed))}")
+    IO.puts("  Errors:         #{pad.(fmt_int(rocket.errors))}  #{pad.(fmt_int(bandit.errors))}")
+    IO.puts("  Throughput:     #{pad.(fmt_int(rocket.rps) <> " rps")}  #{pad.(fmt_int(bandit.rps) <> " rps")}")
+    IO.puts("  Latency p50:    #{pad.(fmt_us(rocket.p50))}  #{pad.(fmt_us(bandit.p50))}")
+    IO.puts("  Latency p95:    #{pad.(fmt_us(rocket.p95))}  #{pad.(fmt_us(bandit.p95))}")
+    IO.puts("  Latency p99:    #{pad.(fmt_us(rocket.p99))}  #{pad.(fmt_us(bandit.p99))}")
+    IO.puts("  Min/Max:        #{pad.(fmt_us(rocket.min) <> "/" <> fmt_us(rocket.max))}  #{pad.(fmt_us(bandit.min) <> "/" <> fmt_us(bandit.max))}")
+  end
+end
+```
+
+Warm up both servers so JIT, connection pools, and schedulers are primed.
+
+```elixir
+IO.puts("Warming up...")
+Bench.run("http://127.0.0.1:15080", "/health", :get, nil, 2_000, 20)
+Bench.run("http://127.0.0.1:15081", "/health", :get, nil, 2_000, 20)
+IO.puts("Done.")
+```
+
+## GET /health
+
+Plain-text response — measures baseline routing + response overhead.
+
+```elixir
+requests = 10_000
+concurrency = 50
+
+rocket = Bench.run("http://127.0.0.1:15080", "/health", :get, nil, requests, concurrency)
+bandit = Bench.run("http://127.0.0.1:15081", "/health", :get, nil, requests, concurrency)
+
+Bench.print_comparison(rocket, bandit)
+
+health_results = {rocket, bandit}
+:ok
+```
+
+## GET /json
+
+JSON-encoded response — adds `:json.encode/1` to the hot path.
+
+```elixir
+rocket = Bench.run("http://127.0.0.1:15080", "/json", :get, nil, requests, concurrency)
+bandit = Bench.run("http://127.0.0.1:15081", "/json", :get, nil, requests, concurrency)
+
+Bench.print_comparison(rocket, bandit)
+
+json_results = {rocket, bandit}
+:ok
+```
+
+## POST 1KB
+
+POST with a 1 KB body — measures request body reading + JSON response.
+
+```elixir
+body = String.duplicate("x", 1024)
+
+rocket = Bench.run("http://127.0.0.1:15080", "/data", :post, body, requests, concurrency)
+bandit = Bench.run("http://127.0.0.1:15081", "/data", :post, body, requests, concurrency)
+
+Bench.print_comparison(rocket, bandit)
+
+post_results = {rocket, bandit}
+:ok
+```
+
+## Summary
+
+All scenarios side-by-side.
+
+```elixir
+scenarios = [
+  {"GET /health", health_results},
+  {"GET /json", json_results},
+  {"POST 1KB", post_results}
+]
+
+header =
+  String.pad_trailing("Scenario", 16) <>
+    String.pad_leading("Rocket p50", 12) <>
+    String.pad_leading("Rocket rps", 12) <>
+    String.pad_leading("Bandit p50", 12) <>
+    String.pad_leading("Bandit rps", 12) <>
+    String.pad_leading("Speedup", 10)
+
+IO.puts("=" |> String.duplicate(String.length(header)))
+IO.puts(header)
+IO.puts("-" |> String.duplicate(String.length(header)))
+
+for {name, {rocket, bandit}} <- scenarios do
+  speedup = Float.round(bandit.p50 / max(rocket.p50, 1), 1)
+
+  IO.puts(
+    String.pad_trailing(name, 16) <>
+      String.pad_leading(Bench.fmt_us(rocket.p50), 12) <>
+      String.pad_leading(Bench.fmt_int(rocket.rps), 12) <>
+      String.pad_leading(Bench.fmt_us(bandit.p50), 12) <>
+      String.pad_leading(Bench.fmt_int(bandit.rps), 12) <>
+      String.pad_leading("#{speedup}x", 10)
+  )
+end
+
+IO.puts("=" |> String.duplicate(String.length(header)))
+:ok
+```
+
+## Cleanup
+
+```elixir
+Supervisor.stop(rocket_sup)
+Supervisor.stop(bandit_sup)
+IO.puts("Servers stopped.")
+```
