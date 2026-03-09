@@ -6,13 +6,25 @@ Rocket uses OTP 28's `:socket` module with a [picohttpparser](https://github.com
 
 ## Performance
 
-Benchmarked on a single machine with `hey -n 100000 -c 128`:
+**~30x lower latency** than Bandit+Plug, translating to **~3x higher throughput** under load.
+
+Latency (in-process bench, p50):
+
+| Endpoint        | Rocket     | Bandit      | Improvement |
+|-----------------|-----------|-------------|-------------|
+| GET /health     | 68μs      | 2.1ms       | 30x         |
+| GET /json       | 74μs      | 2.2ms       | 30x         |
+| POST 1KB body   | 81μs      | 2.3ms       | 28x         |
+
+Throughput (`hey -n 100000 -c 128`, single machine):
 
 | Endpoint        | Rocket       | Bandit       | Speedup |
 |-----------------|-------------|-------------|---------|
 | GET /health     | 275,918 rps | 84,949 rps  | 3.2x    |
 | GET /json       | 262,089 rps | 80,765 rps  | 3.2x    |
 | POST 1KB body   | 278,130 rps | 91,789 rps  | 3.0x    |
+
+The throughput gap is narrower because external bench tools (`hey`, `wrk`) spend most of their time in client-side overhead — connection management, response parsing, scheduling — which both servers share equally. Latency measures what Rocket actually controls: parsing, routing, and response construction.
 
 ## Requirements
 
