@@ -10,6 +10,8 @@ defmodule Rocket.Listener do
 
   @default_port 8080
   @default_backlog 1024
+  @default_max_connections 10_000
+  @default_max_body 1_048_576
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
@@ -21,17 +23,30 @@ defmodule Rocket.Listener do
     backlog = Keyword.get(opts, :backlog, @default_backlog)
     handler = Keyword.fetch!(opts, :handler)
     num_acceptors = Keyword.get(opts, :num_acceptors, System.schedulers_online())
+    max_connections = Keyword.get(opts, :max_connections, @default_max_connections)
+    max_body = Keyword.get(opts, :max_body, @default_max_body)
+
+    # Shared counter: index 1 = active connections
+    conn_counter = :counters.new(1, [:atomics])
+
+    # Config passed to every connection
+    conn_config = %{
+      handler: handler,
+      max_body: max_body,
+      max_connections: max_connections,
+      conn_counter: conn_counter
+    }
 
     case open_listener(port, backlog) do
       {:ok, listen_socket} ->
-        Logger.info("Rocket listening on port #{port} with #{num_acceptors} acceptors")
+        Logger.info("Rocket listening on port #{port} with #{num_acceptors} acceptors (max #{max_connections} conns)")
 
         acceptors =
           for i <- 1..num_acceptors do
             {:ok, pid} =
               Rocket.Acceptor.start_link(
                 listen_socket: listen_socket,
-                handler: handler,
+                config: conn_config,
                 id: i
               )
 
@@ -41,8 +56,8 @@ defmodule Rocket.Listener do
         state = %{
           listen_socket: listen_socket,
           port: port,
-          handler: handler,
-          acceptors: acceptors
+          acceptors: acceptors,
+          conn_counter: conn_counter
         }
 
         {:ok, state}
@@ -72,7 +87,6 @@ defmodule Rocket.Listener do
   defp set_reuseport(socket) do
     case :socket.setopt(socket, {:socket, :reuseport}, true) do
       :ok -> :ok
-      # SO_REUSEPORT not available on all platforms — non-fatal
       {:error, _} -> :ok
     end
   end

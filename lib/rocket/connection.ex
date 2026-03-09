@@ -11,19 +11,20 @@ defmodule Rocket.Connection do
   - Pipelining (leftover bytes fed back to parser)
   - Expect: 100-continue
   - Connection: close
+  - Max body size enforcement (413)
+  - Connection backpressure via shared counter
   """
   require Logger
 
   @idle_timeout_ms 60_000
   @read_timeout_ms 10_000
   @max_header_size 8192
-  # @default_max_body 1_048_576  # reserved for Phase 5 per-route limits
 
-  def start(socket, handler) do
-    spawn(fn -> init(socket, handler) end)
+  def start(socket, config) do
+    spawn(fn -> init(socket, config) end)
   end
 
-  defp init(socket, handler) do
+  defp init(socket, config) do
     receive do
       :ready -> :ok
     after
@@ -33,34 +34,43 @@ defmodule Rocket.Connection do
         exit(:normal)
     end
 
-    recv_loop(socket, handler, <<>>)
+    # Track this connection
+    :counters.add(config.conn_counter, 1, 1)
+
+    try do
+      recv_loop(socket, config, <<>>)
+    after
+      # Always decrement on exit
+      :counters.add(config.conn_counter, 1, -1)
+      :socket.close(socket)
+    end
   end
 
   # Main recv loop — waits for data, accumulates into buffer, attempts parse.
   # `buffer` may contain leftover bytes from a previous pipelined request.
-  defp recv_loop(socket, handler, buffer) do
+  defp recv_loop(socket, config, buffer) do
     # If buffer already has data (pipelining), try parsing immediately
     if byte_size(buffer) > 0 do
-      handle_data(socket, handler, buffer)
+      handle_data(socket, config, buffer)
     else
       case :socket.recv(socket, 0, @idle_timeout_ms) do
         {:ok, data} ->
-          handle_data(socket, handler, data)
+          handle_data(socket, config, data)
 
         {:error, :timeout} ->
-          :socket.close(socket)
+          :ok
 
         {:error, :closed} ->
           :ok
 
         {:error, reason} ->
           Logger.debug("Connection recv error: #{inspect(reason)}")
-          :socket.close(socket)
+          :ok
       end
     end
   end
 
-  defp handle_data(socket, handler, buffer) do
+  defp handle_data(socket, config, buffer) do
     case Rocket.HTTP.parse_request(buffer) do
       {:ok, {method, path, query_string, headers, body_offset, minor_version}} ->
         # Data after headers that's already in the buffer
@@ -69,43 +79,50 @@ defmodule Rocket.Connection do
         # Determine content length
         content_length = get_content_length(headers)
 
-        # Handle Expect: 100-continue
-        if has_expect_continue(headers) do
-          :socket.send(socket, "HTTP/1.1 100 Continue\r\n\r\n")
-        end
-
-        # Read full body
-        {body, rest} = read_body(socket, after_headers, content_length)
-
-        # Build request
-        req = Rocket.Request.build(method, path, query_string, headers, body, socket)
-        dispatch(req, handler)
-
-        # Determine keep-alive
-        if keep_alive?(headers, minor_version) do
-          recv_loop(socket, handler, rest)
+        # Enforce max body size
+        if content_length > config.max_body do
+          Rocket.Response.send_resp(%{socket: socket}, 413, "Content Too Large")
+          # Don't keep-alive after rejection — client may still be sending
+          :ok
         else
-          :socket.close(socket)
+          # Handle Expect: 100-continue
+          if has_expect_continue(headers) do
+            :socket.send(socket, "HTTP/1.1 100 Continue\r\n\r\n")
+          end
+
+          # Read full body
+          {body, rest} = read_body(socket, after_headers, content_length)
+
+          # Build request
+          req = Rocket.Request.build(method, path, query_string, headers, body, socket)
+          dispatch(req, config.handler)
+
+          # Determine keep-alive
+          if keep_alive?(headers, minor_version) do
+            recv_loop(socket, config, rest)
+          else
+            :ok
+          end
         end
 
       :incomplete ->
         if byte_size(buffer) > @max_header_size do
           Rocket.Response.send_resp(%{socket: socket}, 431, "Request Header Fields Too Large")
-          :socket.close(socket)
+          :ok
         else
           # Need more data to complete headers
           case :socket.recv(socket, 0, @read_timeout_ms) do
             {:ok, data} ->
-              handle_data(socket, handler, <<buffer::binary, data::binary>>)
+              handle_data(socket, config, <<buffer::binary, data::binary>>)
 
             {:error, _} ->
-              :socket.close(socket)
+              :ok
           end
         end
 
       :error ->
         Rocket.Response.send_resp(%{socket: socket}, 400, "Bad Request")
-        :socket.close(socket)
+        :ok
     end
   end
 
