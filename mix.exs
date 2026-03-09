@@ -23,7 +23,10 @@ defmodule Rocket.MixProject do
 
   defp deps do
     [
-      {:elixir_make, "~> 0.9", runtime: false}
+      {:elixir_make, "~> 0.9", runtime: false},
+      {:bandit, "~> 1.6", only: :bench},
+      {:plug, "~> 1.16", only: :bench},
+      {:req, "~> 0.5", only: :bench}
     ]
   end
 end
