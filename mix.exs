@@ -1,7 +1,7 @@
 defmodule Rocket.MixProject do
   use Mix.Project
 
-  @version "0.2.4"
+  @version "0.2.5"
   @source_url "https://github.com/awksedgreep/rocket"
 
   def project do
@@ -9,7 +9,8 @@ defmodule Rocket.MixProject do
       app: :rocket,
       version: @version,
       elixir: "~> 1.18",
-      description: "High-performance HTTP/1.1 server for the BEAM using OTP 28 :socket and a picohttpparser NIF.",
+      description:
+        "High-performance HTTP/1.1 server for the BEAM using OTP 28 :socket and a picohttpparser NIF.",
       start_permanent: Mix.env() == :prod,
       compilers: [:elixir_make] ++ Mix.compilers(),
       make_clean: ["clean"],

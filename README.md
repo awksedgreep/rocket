@@ -1,4 +1,20 @@
-# Rocket
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo-light.svg">
+    <img src="docs/logo-light.svg" width="300" alt="Timeless">
+  </picture>
+</p>
+
+<h3 align="center">High-Performance HTTP/1.1 Server for the BEAM</h3>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/awksedgreep/rocket.svg" alt="License"></a>
+</p>
+
+---
+
+> "I found it ironic that the first thing you do to time series data is squash the timestamp. That's how the name Timeless was born." --Mark Cotner
 
 High-performance HTTP/1.1 server for the BEAM.
 
