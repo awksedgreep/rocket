@@ -20,7 +20,7 @@ defmodule Rocket.MixProject do
       homepage_url: @source_url,
       docs: [
         main: "readme",
-        extras: ["README.md", "LICENSE"]
+        extras: ["README.md", "LICENSE", "docs/parser-performance.md"]
       ]
     ]
   end
@@ -46,7 +46,8 @@ defmodule Rocket.MixProject do
       maintainers: ["Matthew Cotner"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib c_src Makefile mix.exs README.md LICENSE .formatter.exs)
+      files:
+        ~w(lib c_src Makefile mix.exs README.md LICENSE .formatter.exs docs/parser-performance.md)
     ]
   end
 end

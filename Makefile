@@ -1,5 +1,7 @@
 PRIV_DIR = priv
 NIF_SO = $(PRIV_DIR)/rocket_nif.so
+PICO_TEST = _build/picohttpparser_test
+PICO_TEST_CFLAGS ?= -O2 -Wall -Wextra
 
 ERTS_INCLUDE_DIR ?= $(shell erl -noshell -eval 'io:format("~s", [lists:concat([code:root_dir(), "/erts-", erlang:system_info(version), "/include"])])' -s init stop)
 
@@ -12,6 +14,7 @@ ifeq ($(SSE42_ALREADY),no)
     SSE42_SUPPORTED := $(shell echo | $(CC) -msse4.2 -dM -E - 2>/dev/null | grep -q __SSE4_2__ && echo yes || echo no)
     ifeq ($(SSE42_SUPPORTED),yes)
 	CFLAGS += -msse4.2
+	PICO_TEST_CFLAGS += -msse4.2
     endif
 endif
 
@@ -27,7 +30,16 @@ $(NIF_SO): c_src/rocket_nif.c c_src/picohttpparser.c c_src/picohttpparser.h
 	@mkdir -p $(PRIV_DIR)
 	$(CC) $(CFLAGS) -o $@ c_src/rocket_nif.c c_src/picohttpparser.c
 
-clean:
-	rm -f $(NIF_SO)
+# Original upstream tests, including guard-page checks. Keep the executable
+# flags separate from the shared-library flags above.
+test-pico: $(PICO_TEST)
+	./$(PICO_TEST)
 
-.PHONY: all clean
+$(PICO_TEST): test/picohttpparser/test.c test/picohttpparser/picotest/picotest.c test/picohttpparser/picotest/picotest.h c_src/picohttpparser.c c_src/picohttpparser.h
+	@mkdir -p _build
+	$(CC) $(PICO_TEST_CFLAGS) -Ic_src -Itest/picohttpparser -o $@ test/picohttpparser/test.c test/picohttpparser/picotest/picotest.c c_src/picohttpparser.c
+
+clean:
+	rm -f $(NIF_SO) $(PICO_TEST)
+
+.PHONY: all clean test-pico

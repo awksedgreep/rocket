@@ -70,8 +70,8 @@ defmodule Rocket.Connection do
     end
   end
 
-  defp handle_data(socket, config, buffer) do
-    case Rocket.HTTP.parse_request(buffer) do
+  defp handle_data(socket, config, buffer, previous_length \\ 0) do
+    case Rocket.HTTP.parse_request(buffer, previous_length) do
       {:ok, {method, path, query_string, headers, body_offset, minor_version}} ->
         # Data after headers that's already in the buffer
         after_headers = binary_part(buffer, body_offset, byte_size(buffer) - body_offset)
@@ -113,7 +113,7 @@ defmodule Rocket.Connection do
           # Need more data to complete headers
           case :socket.recv(socket, 0, @read_timeout_ms) do
             {:ok, data} ->
-              handle_data(socket, config, <<buffer::binary, data::binary>>)
+              handle_data(socket, config, <<buffer::binary, data::binary>>, byte_size(buffer))
 
             {:error, _} ->
               :ok

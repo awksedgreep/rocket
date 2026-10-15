@@ -1,0 +1,370 @@
+{
+  "run_order": "before/after on odd rounds, after/before on even rounds; fresh VM each sample",
+  "runs": [
+    {
+      "metadata": {
+        "label": "before",
+        "otp": "29.1.1",
+        "schedulers": 8,
+        "elixir": "1.20.4",
+        "erts": "17.1",
+        "uptime": "10:45  up 1 day, 19:29, 4 users, load averages: 3.65 2.63 2.72",
+        "revision": "c2b81ddd5e930ccc4812fb688a3226151512536a",
+        "iterations": 250000,
+        "trials": 1,
+        "date_utc": "2026-10-15T14:45:18.717963Z",
+        "uname": "Darwin Arnolds-Mac-mini-295.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:27 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8103 arm64",
+        "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+        "source_sha256": {
+          "c_src/rocket_nif.c": "1a0eba6eb82adf67072bfa11be41f0689952e554c851cddd231c02aedb85b18e",
+          "lib/rocket/connection.ex": "dcbcc8150325c142f367f51fe886c26980f62d1db732a1236902fb2bab6e2df2"
+        },
+        "incremental_api": false
+      },
+      "fixtures": [
+        {
+          "name": "hello",
+          "bytes": 40
+        },
+        {
+          "name": "headers24",
+          "bytes": 2291
+        },
+        {
+          "name": "post1k",
+          "bytes": 1091
+        }
+      ],
+      "retention": [
+        {
+          "path_bytes": 6,
+          "backing_bytes": 6
+        },
+        {
+          "path_bytes": 128,
+          "backing_bytes": 128
+        }
+      ],
+      "measurements": [
+        {
+          "trial": 1,
+          "fixture": "hello",
+          "layer": "full_nif_1",
+          "ns_per_request": 105.352
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "full_nif_1",
+          "ns_per_request": 3455.196
+        },
+        {
+          "trial": 1,
+          "fixture": "post1k",
+          "layer": "full_nif_1",
+          "ns_per_request": 131.748
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "fragmented_fresh",
+          "ns_per_request": 34148.041474654376,
+          "parser_calls_per_request": 72
+        }
+      ],
+      "round": 1
+    },
+    {
+      "metadata": {
+        "label": "before",
+        "otp": "29.1.1",
+        "schedulers": 8,
+        "elixir": "1.20.4",
+        "erts": "17.1",
+        "uptime": "10:45  up 1 day, 19:29, 4 users, load averages: 3.44 2.60 2.71",
+        "revision": "c2b81ddd5e930ccc4812fb688a3226151512536a",
+        "iterations": 250000,
+        "trials": 1,
+        "date_utc": "2026-10-15T14:45:23.507754Z",
+        "uname": "Darwin Arnolds-Mac-mini-295.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:27 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8103 arm64",
+        "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+        "source_sha256": {
+          "c_src/rocket_nif.c": "1a0eba6eb82adf67072bfa11be41f0689952e554c851cddd231c02aedb85b18e",
+          "lib/rocket/connection.ex": "dcbcc8150325c142f367f51fe886c26980f62d1db732a1236902fb2bab6e2df2"
+        },
+        "incremental_api": false
+      },
+      "fixtures": [
+        {
+          "name": "hello",
+          "bytes": 40
+        },
+        {
+          "name": "headers24",
+          "bytes": 2291
+        },
+        {
+          "name": "post1k",
+          "bytes": 1091
+        }
+      ],
+      "retention": [
+        {
+          "path_bytes": 6,
+          "backing_bytes": 6
+        },
+        {
+          "path_bytes": 128,
+          "backing_bytes": 128
+        }
+      ],
+      "measurements": [
+        {
+          "trial": 1,
+          "fixture": "hello",
+          "layer": "full_nif_1",
+          "ns_per_request": 92.068
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "full_nif_1",
+          "ns_per_request": 3450.104
+        },
+        {
+          "trial": 1,
+          "fixture": "post1k",
+          "layer": "full_nif_1",
+          "ns_per_request": 132.32
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "fragmented_fresh",
+          "ns_per_request": 30401.209677419356,
+          "parser_calls_per_request": 72
+        }
+      ],
+      "round": 2
+    },
+    {
+      "metadata": {
+        "label": "before",
+        "otp": "29.1.1",
+        "schedulers": 8,
+        "elixir": "1.20.4",
+        "erts": "17.1",
+        "uptime": "10:45  up 1 day, 19:29, 4 users, load averages: 3.44 2.60 2.71",
+        "revision": "c2b81ddd5e930ccc4812fb688a3226151512536a",
+        "iterations": 250000,
+        "trials": 1,
+        "date_utc": "2026-10-15T14:45:25.024774Z",
+        "uname": "Darwin Arnolds-Mac-mini-295.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:27 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8103 arm64",
+        "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+        "source_sha256": {
+          "c_src/rocket_nif.c": "1a0eba6eb82adf67072bfa11be41f0689952e554c851cddd231c02aedb85b18e",
+          "lib/rocket/connection.ex": "dcbcc8150325c142f367f51fe886c26980f62d1db732a1236902fb2bab6e2df2"
+        },
+        "incremental_api": false
+      },
+      "fixtures": [
+        {
+          "name": "hello",
+          "bytes": 40
+        },
+        {
+          "name": "headers24",
+          "bytes": 2291
+        },
+        {
+          "name": "post1k",
+          "bytes": 1091
+        }
+      ],
+      "retention": [
+        {
+          "path_bytes": 6,
+          "backing_bytes": 6
+        },
+        {
+          "path_bytes": 128,
+          "backing_bytes": 128
+        }
+      ],
+      "measurements": [
+        {
+          "trial": 1,
+          "fixture": "hello",
+          "layer": "full_nif_1",
+          "ns_per_request": 92.364
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "full_nif_1",
+          "ns_per_request": 3322.424
+        },
+        {
+          "trial": 1,
+          "fixture": "post1k",
+          "layer": "full_nif_1",
+          "ns_per_request": 138.288
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "fragmented_fresh",
+          "ns_per_request": 31021.025345622118,
+          "parser_calls_per_request": 72
+        }
+      ],
+      "round": 3
+    },
+    {
+      "metadata": {
+        "label": "before",
+        "otp": "29.1.1",
+        "schedulers": 8,
+        "elixir": "1.20.4",
+        "erts": "17.1",
+        "uptime": "10:45  up 1 day, 19:29, 4 users, load averages: 3.32 2.59 2.70",
+        "revision": "c2b81ddd5e930ccc4812fb688a3226151512536a",
+        "iterations": 250000,
+        "trials": 1,
+        "date_utc": "2026-10-15T14:45:29.493452Z",
+        "uname": "Darwin Arnolds-Mac-mini-295.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:27 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8103 arm64",
+        "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+        "source_sha256": {
+          "c_src/rocket_nif.c": "1a0eba6eb82adf67072bfa11be41f0689952e554c851cddd231c02aedb85b18e",
+          "lib/rocket/connection.ex": "dcbcc8150325c142f367f51fe886c26980f62d1db732a1236902fb2bab6e2df2"
+        },
+        "incremental_api": false
+      },
+      "fixtures": [
+        {
+          "name": "hello",
+          "bytes": 40
+        },
+        {
+          "name": "headers24",
+          "bytes": 2291
+        },
+        {
+          "name": "post1k",
+          "bytes": 1091
+        }
+      ],
+      "retention": [
+        {
+          "path_bytes": 6,
+          "backing_bytes": 6
+        },
+        {
+          "path_bytes": 128,
+          "backing_bytes": 128
+        }
+      ],
+      "measurements": [
+        {
+          "trial": 1,
+          "fixture": "hello",
+          "layer": "full_nif_1",
+          "ns_per_request": 91.596
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "full_nif_1",
+          "ns_per_request": 3474.176
+        },
+        {
+          "trial": 1,
+          "fixture": "post1k",
+          "layer": "full_nif_1",
+          "ns_per_request": 132.532
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "fragmented_fresh",
+          "ns_per_request": 30384.50460829493,
+          "parser_calls_per_request": 72
+        }
+      ],
+      "round": 4
+    },
+    {
+      "metadata": {
+        "label": "before",
+        "otp": "29.1.1",
+        "schedulers": 8,
+        "elixir": "1.20.4",
+        "erts": "17.1",
+        "uptime": "10:45  up 1 day, 19:29, 4 users, load averages: 3.32 2.59 2.70",
+        "revision": "c2b81ddd5e930ccc4812fb688a3226151512536a",
+        "iterations": 250000,
+        "trials": 1,
+        "date_utc": "2026-10-15T14:45:31.014830Z",
+        "uname": "Darwin Arnolds-Mac-mini-295.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:27 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T8103 arm64",
+        "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+        "source_sha256": {
+          "c_src/rocket_nif.c": "1a0eba6eb82adf67072bfa11be41f0689952e554c851cddd231c02aedb85b18e",
+          "lib/rocket/connection.ex": "dcbcc8150325c142f367f51fe886c26980f62d1db732a1236902fb2bab6e2df2"
+        },
+        "incremental_api": false
+      },
+      "fixtures": [
+        {
+          "name": "hello",
+          "bytes": 40
+        },
+        {
+          "name": "headers24",
+          "bytes": 2291
+        },
+        {
+          "name": "post1k",
+          "bytes": 1091
+        }
+      ],
+      "retention": [
+        {
+          "path_bytes": 6,
+          "backing_bytes": 6
+        },
+        {
+          "path_bytes": 128,
+          "backing_bytes": 128
+        }
+      ],
+      "measurements": [
+        {
+          "trial": 1,
+          "fixture": "hello",
+          "layer": "full_nif_1",
+          "ns_per_request": 91.528
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "full_nif_1",
+          "ns_per_request": 3299.32
+        },
+        {
+          "trial": 1,
+          "fixture": "post1k",
+          "layer": "full_nif_1",
+          "ns_per_request": 139.964
+        },
+        {
+          "trial": 1,
+          "fixture": "headers24",
+          "layer": "fragmented_fresh",
+          "ns_per_request": 30847.062211981567,
+          "parser_calls_per_request": 72
+        }
+      ],
+      "round": 5
+    }
+  ]
+}

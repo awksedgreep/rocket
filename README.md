@@ -55,6 +55,18 @@ Throughput (`hey -n 100000 -c 128`, single machine):
 
 The throughput gap is narrower because external bench tools (`hey`, `wrk`) spend most of their time in client-side overhead — connection management, response parsing, scheduling — which both servers share equally. Latency measures what Rocket actually controls: parsing, routing, and response construction.
 
+## Parser buffer lifetime
+
+Parsed path, query-string, and header binaries may share the request's input
+buffer. Copy fields with `:binary.copy/1` when retaining them beyond request
+processing would otherwise keep a large body or pipeline buffer alive.
+`Rocket.HTTP.parse_request/1` keeps its existing result format;
+`parse_request/2` additionally accepts a previous incomplete-prefix length.
+The connection loop supplies and resets that length automatically.
+
+See [parser performance notes](docs/parser-performance.md) for the API contract,
+upstream tests, reproduction commands, measurements, and retention tradeoff.
+
 ## Requirements
 
 - Elixir ~> 1.18

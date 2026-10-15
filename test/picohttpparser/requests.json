@@ -1,0 +1,315 @@
+[
+  {
+    "name": "simple",
+    "input_hex": "474554202f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f",
+      "query_hex": "",
+      "headers_hex": [],
+      "offset": 18,
+      "version": 0
+    }
+  },
+  {
+    "name": "partial",
+    "input_hex": "474554202f20485454502f312e300d0a0d",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "parse headers",
+    "input_hex": "474554202f686f676520485454502f312e310d0a486f73743a206578616d706c652e636f6d0d0a436f6f6b69653a200d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f686f6765",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "486f7374",
+          "6578616d706c652e636f6d"
+        ],
+        [
+          "436f6f6b6965",
+          ""
+        ]
+      ],
+      "offset": 51,
+      "version": 1
+    }
+  },
+  {
+    "name": "multibyte included",
+    "input_hex": "474554202f686f676520485454502f312e310d0a486f73743a206578616d706c652e636f6d0d0a557365722d4167656e743a20e381b2e32f312e300d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f686f6765",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "486f7374",
+          "6578616d706c652e636f6d"
+        ],
+        [
+          "557365722d4167656e74",
+          "e381b2e32f312e30"
+        ]
+      ],
+      "offset": 63,
+      "version": 1
+    }
+  },
+  {
+    "name": "parse multiline",
+    "input_hex": "474554202f20485454502f312e300d0a666f6f3a200d0a666f6f3a20620d0a202009630d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "666f6f",
+          ""
+        ],
+        [
+          "666f6f",
+          "62"
+        ],
+        [
+          "",
+          "20200963"
+        ]
+      ],
+      "offset": 39,
+      "version": 0
+    }
+  },
+  {
+    "name": "parse header name with trailing space",
+    "input_hex": "474554202f20485454502f312e300d0a666f6f203a2061620d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "incomplete 1",
+    "input_hex": "474554",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 2",
+    "input_hex": "47455420",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 3",
+    "input_hex": "474554202f",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 4",
+    "input_hex": "474554202f20",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 5",
+    "input_hex": "474554202f2048",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 6",
+    "input_hex": "474554202f20485454502f312e",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 7",
+    "input_hex": "474554202f20485454502f312e30",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "incomplete 8",
+    "input_hex": "474554202f20485454502f312e300d",
+    "previous": 0,
+    "expected": "incomplete"
+  },
+  {
+    "name": "slowloris (incomplete)",
+    "input_hex": "474554202f686f676520485454502f312e300d0a0d",
+    "previous": 20,
+    "expected": "incomplete"
+  },
+  {
+    "name": "slowloris (complete)",
+    "input_hex": "474554202f686f676520485454502f312e300d0a0d0a",
+    "previous": 21,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f686f6765",
+      "query_hex": "",
+      "headers_hex": [],
+      "offset": 22,
+      "version": 0
+    }
+  },
+  {
+    "name": "empty method",
+    "input_hex": "202f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "empty request-target",
+    "input_hex": "4745542020485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "empty header name",
+    "input_hex": "474554202f20485454502f312e300d0a3a610d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "header name (space only)",
+    "input_hex": "474554202f20485454502f312e300d0a203a610d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "NUL in method",
+    "input_hex": "470054202f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "tab in method",
+    "input_hex": "470954202f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "invalid method",
+    "input_hex": "3a474554202f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "DEL in uri-path",
+    "input_hex": "474554202f7f68656c6c6f20485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "NUL in header name",
+    "input_hex": "474554202f20485454502f312e300d0a6100623a20630d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "NUL in header value",
+    "input_hex": "474554202f20485454502f312e300d0a61623a206300640d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "CTL in header name",
+    "input_hex": "474554202f20485454502f312e300d0a611b623a20630d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "CTL in header value",
+    "input_hex": "474554202f20485454502f312e300d0a61623a20631b0d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "invalid char in header value",
+    "input_hex": "474554202f20485454502f312e300d0a2f3a20310d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "accept MSB chars",
+    "input_hex": "474554202fa020485454502f312e300d0a683a2063a2790d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2fa0",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "68",
+          "63a279"
+        ]
+      ],
+      "offset": 27,
+      "version": 0
+    }
+  },
+  {
+    "name": "accept |~ (though forbidden by SSE)",
+    "input_hex": "474554202f20485454502f312e300d0a7c7e3a20310d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "7c7e",
+          "31"
+        ]
+      ],
+      "offset": 25,
+      "version": 0
+    }
+  },
+  {
+    "name": "disallow {",
+    "input_hex": "474554202f20485454502f312e300d0a7b3a20310d0a0d0a",
+    "previous": 0,
+    "expected": "error"
+  },
+  {
+    "name": "exclude leading and trailing spaces in header value",
+    "input_hex": "474554202f20485454502f312e300d0a666f6f3a20612009200d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f",
+      "query_hex": "",
+      "headers_hex": [
+        [
+          "666f6f",
+          "61"
+        ]
+      ],
+      "offset": 29,
+      "version": 0
+    }
+  },
+  {
+    "name": "accept multiple spaces between tokens",
+    "input_hex": "4745542020202f202020485454502f312e300d0a0d0a",
+    "previous": 0,
+    "expected": {
+      "method": "get",
+      "path_hex": "2f",
+      "query_hex": "",
+      "headers_hex": [],
+      "offset": 22,
+      "version": 0
+    }
+  }
+]

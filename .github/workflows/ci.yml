@@ -18,4 +18,5 @@ jobs:
 
       - run: mix deps.get
       - run: mix compile --warnings-as-errors
+      - run: make test-pico
       - run: mix test

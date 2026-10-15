@@ -1,6 +1,6 @@
 // Rocket HTTP NIF — wraps picohttpparser for BEAM integration.
 //
-// parse_request/1: binary → {:ok, {method, path, query, headers, body_offset, minor_ver}}
+// parse_request/1,2: binary [, previous_length] → {:ok, {method, path, query, headers, body_offset, minor_ver}}
 //                          | :incomplete | :error
 //
 // parse_query_string/1: binary → [{key, value}] with percent-decoding
@@ -49,6 +49,14 @@ static ERL_NIF_TERM make_binary(ErlNifEnv* env, const char* data, size_t len) {
     return bin;
 }
 
+// Request fields already point into input. Empty fields (including nameless
+// folded headers) can have NULL pointers and must not use pointer subtraction.
+static ERL_NIF_TERM make_request_binary(ErlNifEnv* env, ERL_NIF_TERM input,
+                                       const unsigned char* base, const char* data, size_t len) {
+    if (len == 0) return make_binary(env, "", 0);
+    return enif_make_sub_binary(env, input, (size_t)((const unsigned char*)data - base), len);
+}
+
 static ERL_NIF_TERM method_to_atom(ErlNifEnv* env, const char* method, size_t len) {
     if (len == 3 && memcmp(method, "GET", 3) == 0) return atom_get;
     if (len == 4 && memcmp(method, "POST", 4) == 0) return atom_post;
@@ -79,6 +87,11 @@ static ERL_NIF_TERM nif_parse_request(ErlNifEnv* env, int argc, const ERL_NIF_TE
         return enif_make_badarg(env);
     }
 
+    ErlNifUInt64 previous_length = 0;
+    if (argc == 2 && (!enif_get_uint64(env, argv[1], &previous_length) || previous_length > input.size)) {
+        return enif_make_badarg(env);
+    }
+
     const char* method;
     size_t method_len;
     const char* path;
@@ -93,7 +106,7 @@ static ERL_NIF_TERM nif_parse_request(ErlNifEnv* env, int argc, const ERL_NIF_TE
         &path, &path_len,
         &minor_version,
         headers, &num_headers,
-        0  // last_len = 0 (not doing incremental parse)
+        (size_t)previous_length
     );
 
     if (ret == -2) {
@@ -122,11 +135,11 @@ static ERL_NIF_TERM nif_parse_request(ErlNifEnv* env, int argc, const ERL_NIF_TE
     ERL_NIF_TERM method_term = method_to_atom(env, method, method_len);
 
     // Build path binary
-    ERL_NIF_TERM path_term = make_binary(env, path, path_only_len);
+    ERL_NIF_TERM path_term = make_request_binary(env, argv[0], input.data, path, path_only_len);
 
     // Build query string binary
     ERL_NIF_TERM query_term = (query_start != NULL)
-        ? make_binary(env, query_start, query_len)
+        ? make_request_binary(env, argv[0], input.data, query_start, query_len)
         : make_binary(env, "", 0);
 
     // Build headers list: [{name_bin, value_bin}, ...]
@@ -134,8 +147,8 @@ static ERL_NIF_TERM nif_parse_request(ErlNifEnv* env, int argc, const ERL_NIF_TE
     // Build in reverse order then... actually phr gives them in order,
     // but building a list prepends, so build backwards
     for (int i = (int)num_headers - 1; i >= 0; i--) {
-        ERL_NIF_TERM name_bin = make_binary(env, headers[i].name, headers[i].name_len);
-        ERL_NIF_TERM value_bin = make_binary(env, headers[i].value, headers[i].value_len);
+        ERL_NIF_TERM name_bin = make_request_binary(env, argv[0], input.data, headers[i].name, headers[i].name_len);
+        ERL_NIF_TERM value_bin = make_request_binary(env, argv[0], input.data, headers[i].value, headers[i].value_len);
         ERL_NIF_TERM pair = enif_make_tuple2(env, name_bin, value_bin);
         headers_list = enif_make_list_cell(env, pair, headers_list);
     }
@@ -270,6 +283,7 @@ static ERL_NIF_TERM nif_parse_query_string(ErlNifEnv* env, int argc, const ERL_N
 
 static ErlNifFunc nif_funcs[] = {
     {"parse_request", 1, nif_parse_request, 0},
+    {"parse_request", 2, nif_parse_request, 0},
     {"parse_query_string", 1, nif_parse_query_string, 0}
 };
 
